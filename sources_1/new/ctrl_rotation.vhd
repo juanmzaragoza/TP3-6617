@@ -35,6 +35,7 @@ entity ctrl_rotation is
     port(
         -- inputs
 		clk, rst:                 in std_logic;
+		new_data:                 in std_logic; -- si new_data=1 => hay un nuevo dato en char_data
 		char_data:                in std_logic_vector(7 downto 0);
 		-- outputs
 		rotation_enable:          out std_logic;
