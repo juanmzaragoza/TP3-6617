@@ -115,7 +115,7 @@
 --#  sign bit on Z to bring vectors in quadrants 2 and 3 (1-based) into quadrants
 --#  1 and 4.
 
---#  EXAMPLE USAGE:
+--#  EXAMPLE USAGE: http://kevinpt.github.io/vhdl-extras/rst/modules/cordic.html
 --#  
 --------------------------------------------------------------------
 
