@@ -32,6 +32,10 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity ctrl_rotation is
+    generic(
+		BUFFER_CHARS_SIZE: integer := 9;
+		CHAR_SIZE: integer := 8
+	);
     port(
         -- inputs
 		clk, rst:                 in std_logic;
@@ -49,7 +53,25 @@ end ctrl_rotation;
 -- Mientras se ingrese algo distinto se genera rotation_enable=0 y deshabilita la rotacion
 architecture Behavioral of ctrl_rotation is
 
+    type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
+    
+    signal buffer_chars: buffer_type := (others=>(others=>'0'));
+    
 begin
-
+    
+    bufferWrite: process(clk)
+        variable aux: buffer_type;
+        begin
+            if rising_edge(clk) then
+                if new_data = '1' then
+                    for i in 0 to buffer_chars'length-1 loop
+                        if i > 0 then
+                            buffer_chars(i-1) <= buffer_chars(i);
+                        end if;
+                    end loop;
+                    buffer_chars(BUFFER_CHARS_SIZE-1) <= char_data;
+                end if;
+            end if;
+        end process;
 
 end Behavioral;
