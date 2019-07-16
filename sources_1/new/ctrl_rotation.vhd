@@ -43,7 +43,7 @@ entity ctrl_rotation is
 		char_data:                in std_logic_vector(7 downto 0);
 		-- outputs
 		rotation_enable:          out std_logic;
-		degrees:                  out std_logic
+		degrees:                  out integer
 	);
 end ctrl_rotation;
 
@@ -56,6 +56,9 @@ architecture Behavioral of ctrl_rotation is
     type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
+    
+    signal acc_degrees :integer := 0;
+    signal rotation_enable_aux: std_logic := '0';
     
 begin
     
@@ -73,5 +76,34 @@ begin
                 end if;
             end if;
         end process;
+        
+    readCommand: process(clk)
+        begin
+            if rotation_enable_aux = '1' then -- para que el rotation enable sea solo un pulso
+                rotation_enable_aux <= '0';
+            else
+                if buffer_chars(BUFFER_CHARS_SIZE-1) and buffer_chars(BUFFER_CHARS_SIZE-2) and buffer_chars(BUFFER_CHARS_SIZE-3) then -- si es un numero => ROT A 000
+                    
+                    if buffer_chars(BUFFER_CHARS_SIZE-4) and buffer_chars(BUFFER_CHARS_SIZE-5) and buffer_chars(BUFFER_CHARS_SIZE-6) and buffer_chars(BUFFER_CHARS_SIZE-7) and buffer_chars(BUFFER_CHARS_SIZE-8) and buffer_chars(BUFFER_CHARS_SIZE-9) then -- espero un espacio, una A, un espacio y TOR => ROT C 000
+                        rotation_enable_aux <= '1';
+                        degrees <= 100; --TODO: transformar los grados del buffer
+                    end if;
+                    
+                elsif buffer_chars(BUFFER_CHARS_SIZE-1) then -- tiene que ser una H o A
+                
+                    if buffer_chars(BUFFER_CHARS_SIZE-2) and buffer_chars(BUFFER_CHARS_SIZE-3) and buffer_chars(BUFFER_CHARS_SIZE-4) and buffer_chars(BUFFER_CHARS_SIZE-5) and buffer_chars(BUFFER_CHARS_SIZE-6) and buffer_chars(BUFFER_CHARS_SIZE-7) then -- espero un espacio, una C, un espacio y TOR => ROT C 000
+                        rotation_enable_aux <= '1';
+                        degrees <= acc_degrees + 1;
+                        acc_degrees <= acc_degrees + 1;
+                    end if;
+                    
+                else -- no es un comando y dejo de enviar la rotacion
+                    rotation_enable_aux <= '0';
+                    -- decidir que se hace con el angulo
+                end if;
+            end if;
+        end process;
+        
+    rotation_enable <= rotation_enable_aux;
 
 end Behavioral;
