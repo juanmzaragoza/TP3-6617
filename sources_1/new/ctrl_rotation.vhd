@@ -72,6 +72,26 @@ architecture Behavioral of ctrl_rotation is
             return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97) or (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
         end;
 
+    function get_degrees_from_buffer(buffer_chars: buffer_type)
+            variable unidad: integer;
+            variable decena: integer;
+            variable centena: integer;
+            variable resultado: integer;
+        begin
+            unidad := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1);
+            decena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2);
+            centena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3);
+
+            resultado := unidad + decena*10 + centena*100;
+
+            if resultado >= 0 and resultado <= 365 then
+                return resultado;
+            else
+                return 0;
+            end if;
+
+        end;
+
     type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
@@ -137,8 +157,8 @@ begin
         begin
             if rotation_enable_aux = '1' then
                 if fixed_rotation_enabled = '1' then
-                    acc_degrees <= 100; --TODO: transformar los grados del buffer
-                    degrees <= acc_degrees; 
+                    acc_degrees <= get_degrees_from_buffer(buffer_chars);
+                    degrees <= acc_degrees;
                 elsif continuos_rotation_enabled = '1' then
                     degrees <= acc_degrees + 1;
                     acc_degrees <= acc_degrees + 1;
