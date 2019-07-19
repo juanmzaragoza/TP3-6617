@@ -58,15 +58,30 @@ architecture Behavioral of ctrl_rotation is
             return to_integer(unsigned(word));
         end;
 
+    -- 48=>[0], 57=>[9], 32=>[espacio], 67=>[C], 99=>[c], 84=>[T], 116=>[t], 79=>[O], 111=>[o], 82=>[R], 114=>[r], 65=>[A], 97=>[a], 72=>[H], 104=>[h],
+    -- ROT A [0-3][0-9][0-9] 
+    function is_fixed_rotation_command(buffer_chars: buffer_type)
+        begin
+            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) <= 51) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 97) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9) = 114));
+        end;
+
+    -- tiene que ser una H o A => ROT C [A,H]
+    -- espero un espacio, una C, un espacio y TOR => ROT C 000
+    function is_continuos_rotation_command(buffer_chars: buffer_type)
+        begin
+            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97) or (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
+        end;
+
     type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
     
     signal acc_degrees :integer := 0;
-    signal rotation_enable_aux: std_logic := '0';
+    signal rotation_enable_aux, fixed_rotation_enabled, continuos_rotation_enabled: std_logic := '0';
     
 begin
     
+    -- 1) llega un nuevo dato => reescribo
     bufferWrite: process(clk)
         variable aux: buffer_type;
         begin
@@ -81,35 +96,56 @@ begin
                 end if;
             end if;
         end process;
-        
+    
+    -- 2) valido lo que hay en buffer
     readCommand: process(clk)
         begin
-            if rotation_enable_aux = '1' then -- para que el rotation enable sea solo un pulso
-                rotation_enable_aux <= '0';
-            else
-                -- 48=>[0], 57=>[9], 32=>[espacio], 67=>[C], 99=>[c], 84=>[T], 116=>[t], 79=>[O], 111=>[o], 82=>[R], 114=>[r], 65=>[A], 97=>[a], 72=>[H], 104=>[h],
-                if (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) <= 51) then -- si es un numero => ROT A [0-3][0-9][0-9]
-                    
-                    if buffer_chars(BUFFER_CHARS_SIZE-4) = 32 and (buffer_chars(BUFFER_CHARS_SIZE-5) = 65 or buffer_chars(BUFFER_CHARS_SIZE-5) = 97) and buffer_chars(BUFFER_CHARS_SIZE-6) = 32 and (buffer_chars(BUFFER_CHARS_SIZE-7) = 84 or buffer_chars(BUFFER_CHARS_SIZE-7) = 116) and (buffer_chars(BUFFER_CHARS_SIZE-8) = 79 or buffer_chars(BUFFER_CHARS_SIZE-8) = 111) and (buffer_chars(BUFFER_CHARS_SIZE-9) = 82 or buffer_chars(BUFFER_CHARS_SIZE-9) = 114) then -- espero un espacio, una A, un espacio y TOR => ROT A 000
-                        rotation_enable_aux <= '1';
-                        degrees <= 100; --TODO: transformar los grados del buffer
-                    end if;
-                    
-                elsif (buffer_chars(BUFFER_CHARS_SIZE-1) = 65 or buffer_chars(BUFFER_CHARS_SIZE-1) = 97) or (buffer_chars(BUFFER_CHARS_SIZE-1) = 72 or buffer_chars(BUFFER_CHARS_SIZE-1) = 104) then -- tiene que ser una H o A
+
+            -- (ROTACION FIJA) si es un numero => ROT A [0-3][0-9][0-9] 
+            if is_fixed_rotation_command(buffer_chars) then
                 
-                    if buffer_chars(BUFFER_CHARS_SIZE-2) = 32 and (buffer_chars(BUFFER_CHARS_SIZE-3) = 67 or buffer_chars(BUFFER_CHARS_SIZE-3) = 99)  and buffer_chars(BUFFER_CHARS_SIZE-4) = 32 and (buffer_chars(BUFFER_CHARS_SIZE-5) = 84 or buffer_chars(BUFFER_CHARS_SIZE-5) = 116) and (buffer_chars(BUFFER_CHARS_SIZE-6) = 79 or buffer_chars(BUFFER_CHARS_SIZE-6) = 111) and (buffer_chars(BUFFER_CHARS_SIZE-7) = 82 or buffer_chars(BUFFER_CHARS_SIZE-7) = 114) then -- espero un espacio, una C, un espacio y TOR => ROT C 000
-                        rotation_enable_aux <= '1';
-                        degrees <= acc_degrees + 1;
-                        acc_degrees <= acc_degrees + 1;
-                    end if;
-                    
-                else -- no es un comando y dejo de enviar la rotacion
-                    rotation_enable_aux <= '0';
-                    -- decidir que se hace con el angulo
+                fixed_rotation_enabled <= '1';
+                continuos_rotation_enabled <= '0';
+
+            -- (ROTACION CONTINUA) tiene que ser una H o A => ROT C [A,H]
+            elsif is_continuos_rotation_command(buffer_chars) then 
+            
+                continuos_rotation_enabled <= '1';
+                fixed_rotation_enabled <= '0';
+
+            -- no es un comando y dejo de enviar la rotacion
+            else 
+                continuos_rotation_enabled <= '0';
+                fixed_rotation_enabled <= '0';
+                -- decidir que se hace con el angulo
+            end if;
+        end process;
+
+    -- Division de la frecuencia del reloj para obtener señal de 1 seg
+    prescaler: entity work.prescaler
+        port map(
+           clk_in => clk,
+           rst => '0',
+           N1 =>  125000000,
+            -- N1 : in std_logic_vector(3 downto 0);
+           clk_1 => rotation_enable_aux
+        );
+
+    -- si ingresa un angulo fijo, setea el angulo en particular
+    -- si ingresa una rotacion continua, comienza desde el acumulado anterior
+    rotationDegrees: process(clk)
+        begin
+            if rotation_enable_aux = '1' then
+                if fixed_rotation_enabled = '1' then
+                    acc_degrees <= 100; --TODO: transformar los grados del buffer
+                    degrees <= acc_degrees; 
+                elsif continuos_rotation_enabled = '1' then
+                    degrees <= acc_degrees + 1;
+                    acc_degrees <= acc_degrees + 1;
                 end if;
             end if;
         end process;
         
-    rotation_enable <= rotation_enable_aux;
+    rotation_enable <= (rotation_enable_aux and (continuos_rotation_enabled xor fixed_rotation_enabled));
 
 end Behavioral;
