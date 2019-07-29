@@ -53,34 +53,47 @@ end ctrl_rotation;
 -- Mientras se ingrese algo distinto se genera rotation_enable=0 y deshabilita la rotacion
 architecture Behavioral of ctrl_rotation is
     
-    function word_to_int (word : in std_logic_vector(7 downto 0))
+    type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
+    
+    function word_to_int(word: std_logic_vector(7 downto 0)) return integer is
         begin
             return to_integer(unsigned(word));
         end;
 
     -- 48=>[0], 57=>[9], 32=>[espacio], 67=>[C], 99=>[c], 84=>[T], 116=>[t], 79=>[O], 111=>[o], 82=>[R], 114=>[r], 65=>[A], 97=>[a], 72=>[H], 104=>[h],
     -- ROT A [0-3][0-9][0-9] 
-    function is_fixed_rotation_command(buffer_chars: buffer_type)
+    function is_fixed_rotation_command(buffer_chars: buffer_type) return boolean is
+            variable last_is_digit: boolean := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) <= 57;
+            variable before_last_is_digit: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) <= 57);
+            variable is_digit_123: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) <= 51);
+            variable is_last_space: boolean := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32;
+            variable is_a_Aa: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 97);
+            variable is_first_space: boolean := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 32;
+            variable is_a_Tt: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 116);
+            variable is_a_Oo: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 111);
+            variable is_a_Rr: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9)) = 114);
         begin
-            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) <= 57) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) >= 48 and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) <= 51) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 97) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-8)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-9) = 114));
+            return last_is_digit and before_last_is_digit and is_digit_123 and is_last_space and is_a_Aa and is_first_space and is_a_Tt and is_a_Oo and is_a_Rr;
         end;
 
     -- tiene que ser una H o A => ROT C [A,H]
     -- espero un espacio, una C, un espacio y TOR => ROT C 000
-    function is_continuos_rotation_command(buffer_chars: buffer_type)
+    function is_continuos_rotation_command(buffer_chars: buffer_type) return boolean is
+            variable is_a_Aa: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97);
+            variable is_a_Hh: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104);
         begin
-            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97) or (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
+            return (is_a_Aa or is_a_Hh) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
         end;
 
-    function get_degrees_from_buffer(buffer_chars: buffer_type)
+    function get_degrees_from_buffer(buffer_chars: buffer_type) return integer is
             variable unidad: integer;
             variable decena: integer;
             variable centena: integer;
             variable resultado: integer;
         begin
-            unidad := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1);
-            decena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2);
-            centena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3);
+            unidad := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1));
+            decena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2));
+            centena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3));
 
             resultado := unidad + decena*10 + centena*100;
 
@@ -91,8 +104,6 @@ architecture Behavioral of ctrl_rotation is
             end if;
 
         end;
-
-    type buffer_type is array (0 to BUFFER_CHARS_SIZE-1) of std_logic_vector(CHAR_SIZE-1 downto 0);
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
     
@@ -101,9 +112,9 @@ architecture Behavioral of ctrl_rotation is
     
 begin
     
-    -- 1) llega un nuevo dato => reescribo
+    -- 1) llega un nuevo dato => reescribo (desplazando)
     bufferWrite: process(clk)
-        variable aux: buffer_type;
+            variable aux: buffer_type;
         begin
             if rising_edge(clk) then
                 if new_data = '1' then
