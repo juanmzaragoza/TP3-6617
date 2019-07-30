@@ -91,9 +91,9 @@ architecture Behavioral of ctrl_rotation is
             variable centena: integer;
             variable resultado: integer;
         begin
-            unidad := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1));
-            decena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2));
-            centena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3));
+            unidad := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1))-48;
+            decena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2))-48;
+            centena := word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3))-48;
 
             resultado := unidad + decena*10 + centena*100;
 
@@ -107,7 +107,7 @@ architecture Behavioral of ctrl_rotation is
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
     
-    signal acc_degrees :integer := 0;
+    signal acc_degrees, aux_degress :integer := 0;
     signal rotation_enable_aux, fixed_rotation_enabled, continuos_rotation_enabled: std_logic := '0';
     
 begin
@@ -166,17 +166,17 @@ begin
     -- si ingresa una rotacion continua, comienza desde el acumulado anterior
     rotationDegrees: process(clk)
         begin
-            if rotation_enable_aux = '1' then
+            if rising_edge(clk) and rotation_enable_aux = '1' then
                 if fixed_rotation_enabled = '1' then
                     acc_degrees <= get_degrees_from_buffer(buffer_chars);
-                    degrees <= acc_degrees;
                 elsif continuos_rotation_enabled = '1' then
-                    degrees <= acc_degrees + 1;
-                    acc_degrees <= acc_degrees + 1;
+                    aux_degress <= acc_degrees + 1;
+                    acc_degrees <= aux_degress;
                 end if;
             end if;
         end process;
         
     rotation_enable <= (rotation_enable_aux and (continuos_rotation_enabled xor fixed_rotation_enabled));
+    degrees <= acc_degrees;
 
 end Behavioral;
