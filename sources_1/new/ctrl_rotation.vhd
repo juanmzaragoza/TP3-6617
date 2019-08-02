@@ -107,16 +107,24 @@ architecture Behavioral of ctrl_rotation is
     
     signal buffer_chars: buffer_type := (others=>(others=>'0'));
     
-    signal acc_degrees, aux_degress :integer := 0;
-    signal rotation_enable_aux, fixed_rotation_enabled, continuos_rotation_enabled: std_logic := '0';
+    signal acc_degrees :integer := 0;
+    signal rotation_enable_aux, rotation_enable_aux_old, fixed_rotation_enabled, continuos_rotation_enabled: std_logic := '0';
     
 begin
     
-    -- 1) llega un nuevo dato => reescribo (desplazando)
-    bufferWrite: process(clk)
+    bufferWrite: process(clk, rst)
             variable aux: buffer_type;
         begin
-            if rising_edge(clk) then
+            if rst = '1' then
+                
+                buffer_chars <= (others=>(others=>'0'));
+                acc_degrees <= 0;
+                continuos_rotation_enabled <= '0';
+                fixed_rotation_enabled <= '0';
+                    
+            elsif rising_edge(clk) then
+            
+                -- 1) llega un nuevo dato => reescribo (desplazando)
                 if new_data = '1' then
                     for i in 0 to buffer_chars'length-1 loop
                         if i > 0 then
@@ -125,38 +133,68 @@ begin
                     end loop;
                     buffer_chars(BUFFER_CHARS_SIZE-1) <= char_data;
                 end if;
+                    
+                -- 2) valido lo que hay en buffer
+                -- (ROTACION FIJA) si es un numero => ROT A [0-3][0-9][0-9] 
+                if is_fixed_rotation_command(buffer_chars) then
+                    
+                    fixed_rotation_enabled <= '1';
+                    continuos_rotation_enabled <= '0';
+                    
+                    acc_degrees <= get_degrees_from_buffer(buffer_chars);
+    
+                -- (ROTACION CONTINUA) tiene que ser una H o A => ROT C [A,H]
+                elsif is_continuos_rotation_command(buffer_chars) then 
+                
+                    continuos_rotation_enabled <= '1';
+                    fixed_rotation_enabled <= '0';
+                    
+                    --acc_degrees <= acc_degrees + 1;
+    
+                -- no es un comando y dejo de enviar la rotacion
+                else 
+                    continuos_rotation_enabled <= '0';
+                    fixed_rotation_enabled <= '0';
+                    -- decidir que se hace con el angulo
+                end if;
+                
+                
+                rotation_enable_aux_old <= rotation_enable_aux;
+                if continuos_rotation_enabled = '1' and rotation_enable_aux = '1' and rotation_enable_aux_old = '0' then
+                    acc_degrees <= acc_degrees + 1;
+                end if;
             end if;
         end process;
     
     -- 2) valido lo que hay en buffer
-    readCommand: process(clk)
-        begin
+--    readCommand: process(clk)
+--        begin
 
-            -- (ROTACION FIJA) si es un numero => ROT A [0-3][0-9][0-9] 
-            if is_fixed_rotation_command(buffer_chars) then
+--            -- (ROTACION FIJA) si es un numero => ROT A [0-3][0-9][0-9] 
+--            if is_fixed_rotation_command(buffer_chars) then
                 
-                fixed_rotation_enabled <= '1';
-                continuos_rotation_enabled <= '0';
+--                fixed_rotation_enabled <= '1';
+--                continuos_rotation_enabled <= '0';
 
-            -- (ROTACION CONTINUA) tiene que ser una H o A => ROT C [A,H]
-            elsif is_continuos_rotation_command(buffer_chars) then 
+--            -- (ROTACION CONTINUA) tiene que ser una H o A => ROT C [A,H]
+--            elsif is_continuos_rotation_command(buffer_chars) then 
             
-                continuos_rotation_enabled <= '1';
-                fixed_rotation_enabled <= '0';
+--                continuos_rotation_enabled <= '1';
+--                fixed_rotation_enabled <= '0';
 
-            -- no es un comando y dejo de enviar la rotacion
-            else 
-                continuos_rotation_enabled <= '0';
-                fixed_rotation_enabled <= '0';
-                -- decidir que se hace con el angulo
-            end if;
-        end process;
+--            -- no es un comando y dejo de enviar la rotacion
+--            else 
+--                continuos_rotation_enabled <= '0';
+--                fixed_rotation_enabled <= '0';
+--                -- decidir que se hace con el angulo
+--            end if;
+--        end process;
 
     -- Division de la frecuencia del reloj para obtener señal de 1 seg
     prescaler: entity work.prescaler
         port map(
            clk_in => clk,
-           rst => '0',
+           rst => rst,
            N1 =>  125000000,
             -- N1 : in std_logic_vector(3 downto 0);
            clk_1 => rotation_enable_aux
@@ -164,17 +202,17 @@ begin
 
     -- si ingresa un angulo fijo, setea el angulo en particular
     -- si ingresa una rotacion continua, comienza desde el acumulado anterior
-    rotationDegrees: process(clk)
-        begin
-            if rising_edge(clk) and rotation_enable_aux = '1' then
-                if fixed_rotation_enabled = '1' then
-                    acc_degrees <= get_degrees_from_buffer(buffer_chars);
-                elsif continuos_rotation_enabled = '1' then
-                    aux_degress <= acc_degrees + 1;
-                    acc_degrees <= aux_degress;
-                end if;
-            end if;
-        end process;
+--    rotationDegrees: process(clk)
+--        begin
+--            if rising_edge(clk) and rotation_enable_aux = '1' then
+--                if fixed_rotation_enabled = '1' then
+--                    acc_degrees <= get_degrees_from_buffer(buffer_chars);
+--                elsif continuos_rotation_enabled = '1' then
+--                    aux_degress <= acc_degrees + 1;
+--                    acc_degrees <= aux_degress;
+--                end if;
+--            end if;
+--        end process;
         
     rotation_enable <= (rotation_enable_aux and (continuos_rotation_enabled xor fixed_rotation_enabled));
     degrees <= acc_degrees;

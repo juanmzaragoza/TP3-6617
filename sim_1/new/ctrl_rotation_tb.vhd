@@ -55,12 +55,12 @@ architecture Behavioral of ctrl_rotation_tb is
     end component;
 
     constant TCK: time:= 20 ns; 		-- periodo de reloj
-    constant DELAY: natural:= 5;
+    constant DELAY: natural:= 10;
     constant WORD_SIZE_T: natural:= 8;
     
     file datos: text open read_mode is "//home/juanzaragoza/sisdig6617/TP3_6617/TP3_6617.srcs/ctrl_rotation_data_tb.txt";
     
-    signal clk, rot_ena: std_logic:= '0';
+    signal clk, rot_ena, new_data: std_logic:= '0';
     signal input_char: std_logic_vector(7 downto 0) := (others => '0');
 	signal expected_result: integer := 0;
     signal ciclos: integer := 0;
@@ -84,9 +84,12 @@ begin
 			read(l, ch); 					-- se lee un caracter (es el espacio)
 			read(l, aux); 					-- se lee otro entero de la linea
 			expected_result <= to_integer(to_unsigned(aux, WORD_SIZE_T)); 	-- se carga el valor del operando B
+			new_data <= '1';
 		end loop;
 		
 		file_close(datos);		-- se cierra del archivo
+		wait for TCK*(1);
+		new_data <= '0';
 		wait for TCK*(DELAY+1);
 		assert false report		-- se aborta la simulacion (fin del archivo)
 			"Fin de la simulacion" severity failure;
@@ -101,7 +104,7 @@ begin
             -- inputs
             clk => clk, 
             rst => '0',
-            new_data => clk, -- si new_data=1 => hay un nuevo dato en char_data
+            new_data => new_data, -- si new_data=1 => hay un nuevo dato en char_data
             char_data => input_char,
             -- outputs
             rotation_enable => rot_ena,
