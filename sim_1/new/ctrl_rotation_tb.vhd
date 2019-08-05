@@ -41,7 +41,8 @@ architecture Behavioral of ctrl_rotation_tb is
     component ctrl_rotation is
         generic(
             BUFFER_CHARS_SIZE: integer := 9;
-            CHAR_SIZE: integer := 8
+            CHAR_SIZE: integer := 8;
+            N: integer := 125000000
         );
         port(
             -- inputs
@@ -83,7 +84,7 @@ begin
 			input_char <= std_logic_vector(to_unsigned(character'pos(ch), 8));
 			read(l, ch); 					-- se lee un caracter (es el espacio)
 			read(l, aux); 					-- se lee otro entero de la linea
-			expected_result <= to_integer(to_unsigned(aux, WORD_SIZE_T)); 	-- se carga el valor del operando B
+			expected_result <= aux; 	-- se carga el valor del operando B
 			new_data <= '0';
 			wait for TCK*(DELAY+1);
 			new_data <= '1';
@@ -100,7 +101,8 @@ begin
 	DUT: ctrl_rotation
         generic map(
             BUFFER_CHARS_SIZE => 9,
-            CHAR_SIZE => 8
+            CHAR_SIZE => 8,
+            N => 4
         )
         port map(
             -- inputs
@@ -116,7 +118,7 @@ begin
 	-- Verificacion de la condicion
 	verificacion: process(clk)
 	begin
-		if rising_edge(clk) then
+		if rising_edge(clk) and rot_ena = '1' then
 --			report integer'image(to_integer(a_file)) & " " & integer'image(to_integer(b_file)) & " " & integer'image(to_integer(z_file));
 			assert degrees = expected_result report
 				"Error: Salida del DUT no coincide con referencia (salida del dut = " & 

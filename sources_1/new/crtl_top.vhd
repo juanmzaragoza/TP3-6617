@@ -98,12 +98,30 @@ architecture Behavioral of ctrl_top is
         );
     
     end component;
+    
+    component ctrl_rotation is
+        generic(
+            BUFFER_CHARS_SIZE: integer := 9;
+            CHAR_SIZE: integer := 8;
+            N: integer := 125000000
+        );
+        port(
+            -- inputs
+            clk, rst:                 in std_logic;
+            new_data:                 in std_logic; -- si new_data=1 => hay un nuevo dato en char_data
+            char_data:                in std_logic_vector(7 downto 0);
+            -- outputs
+            rotation_enable:          out std_logic;
+            degrees:                  out integer
+        );
+    end component;
 	
 	signal rst_clk_rx: std_logic;
 	
 	-- Signals between uart_rx and vga
 	signal rx_data, char_data: std_logic_vector(7 downto 0);           -- Data output of uart_rx
-	signal rx_data_rdy, old_rx_data_rdy, enable_write_ram: std_logic;  -- Data ready output of uart_rx
+	signal rx_data_rdy, old_rx_data_rdy, enable_write_ram, enable_rot: std_logic;  -- Data ready output of uart_rx
+	signal rotation_degress : integer := 0;
 	
 	-- VGA
 	signal pixel_x, pixel_y: std_logic_vector(9 downto 0);
@@ -149,6 +167,18 @@ begin
             pixel_row   => pixel_y,
             pixel_col   => pixel_x
 		);
+		
+	ctrl_rot: ctrl_rotation
+	   port map(
+	       -- inputs
+            clk             => clk_pin,
+            rst             => rst_clk_rx,
+            new_data        => enable_write_ram,
+            char_data       => char_data,
+            -- outputs
+            rotation_enable => enable_rot, -- salida que habilita la rotacion cada 1 seg
+            degrees         => rotation_degress -- cantidad de grados a rotar
+       );
 	
 	-- prendo toda la pantalla
 	rgb <= (others => '1');

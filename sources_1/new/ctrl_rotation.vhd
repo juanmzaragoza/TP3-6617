@@ -34,7 +34,8 @@ use IEEE.NUMERIC_STD.ALL;
 entity ctrl_rotation is
     generic(
 		BUFFER_CHARS_SIZE: integer := 9;
-		CHAR_SIZE: integer := 8
+		CHAR_SIZE: integer := 8;
+		N: integer := 125000000
 	);
     port(
         -- inputs
@@ -75,15 +76,24 @@ architecture Behavioral of ctrl_rotation is
         begin
             return last_is_digit and before_last_is_digit and is_digit_123 and is_last_space and is_a_Aa and is_first_space and is_a_Tt and is_a_Oo and is_a_Rr;
         end;
-
+    
+    function is_counterclockwise_rotation(buffer_chars: buffer_type) return boolean is
+        begin
+            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97);
+        end;
+        
+    function is_hourly_rotation(buffer_chars: buffer_type) return boolean is
+        begin
+            return (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104);
+        end;
+        
     -- tiene que ser una H o A => ROT C [A,H]
     -- espero un espacio, una C, un espacio y TOR => ROT C 000
     function is_continuos_rotation_command(buffer_chars: buffer_type) return boolean is
-            variable is_a_Aa: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 65 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 97);
-            variable is_a_Hh: boolean := (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 72 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-1)) = 104);
         begin
-            return (is_a_Aa or is_a_Hh) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
+            return (is_counterclockwise_rotation(buffer_chars) or is_hourly_rotation(buffer_chars)) and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-2)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 67 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-3)) = 99)  and word_to_int(buffer_chars(BUFFER_CHARS_SIZE-4)) = 32 and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 84 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-5)) = 116) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 79 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-6)) = 111) and (word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 82 or word_to_int(buffer_chars(BUFFER_CHARS_SIZE-7)) = 114);
         end;
+    
 
     function get_degrees_from_buffer(buffer_chars: buffer_type) return integer is
             variable unidad: integer;
@@ -97,7 +107,7 @@ architecture Behavioral of ctrl_rotation is
 
             resultado := unidad + decena*10 + centena*100;
 
-            if resultado >= 0 and resultado <= 365 then
+            if resultado >= 0 and resultado <= 360 then
                 return resultado;
             else
                 return 0;
@@ -149,7 +159,22 @@ begin
                     fixed_rotation_enabled <= '0';
                     
                     if rotation_enable_aux = '1' then
-                        acc_degrees <= acc_degrees + 1;
+                        if is_counterclockwise_rotation(buffer_chars) then -- si la rotacion es anti-horario
+                            -- cuento hasta 360
+                            if (acc_degrees + 1) <= 360 then
+                                acc_degrees <= acc_degrees + 1;
+                            else
+                                acc_degrees <= 0;
+                            end if;
+                            
+                        else -- la rotacion es horaria
+                            -- y cuento hasta 0
+                            if (acc_degrees - 1) >= 0 then
+                                acc_degrees <= acc_degrees - 1;
+                            else
+                                acc_degrees <= 360;
+                            end if;
+                        end if;
                     end if;
     
                 -- no es un comando y dejo de enviar la rotacion
@@ -166,7 +191,7 @@ begin
         port map(
            clk_in => clk,
            rst => rst,
-           N1 =>  125000000,
+           N1 =>  N,
             -- N1 : in std_logic_vector(3 downto 0);
            clk_1 => rotation_enable_aux
         );
