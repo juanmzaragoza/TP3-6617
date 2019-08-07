@@ -115,12 +115,23 @@ architecture Behavioral of ctrl_top is
             degrees:                  out integer
         );
     end component;
+    
+    component crtl_screen is
+        port(
+            -- inputs
+            mclk: in std_logic;
+            pixel_row: in std_logic_vector(9 downto 0); --devuelven en el sistema la posicion del barrido
+            pixel_col: in std_logic_vector(9 downto 0);
+            -- outputs
+            pixel_on: out std_logic
+        );
+    end component;
 	
 	signal rst_clk_rx: std_logic;
 	
 	-- Signals between uart_rx and vga
 	signal rx_data, char_data: std_logic_vector(7 downto 0);           -- Data output of uart_rx
-	signal rx_data_rdy, old_rx_data_rdy, enable_write_ram, enable_rot: std_logic;  -- Data ready output of uart_rx
+	signal rx_data_rdy, old_rx_data_rdy, enable_write_ram, enable_rot, pixel_on: std_logic;  -- Data ready output of uart_rx
 	signal rotation_degress : integer := 0;
 	
 	-- VGA
@@ -168,6 +179,14 @@ begin
             pixel_col   => pixel_x
 		);
 		
+	screen: crtl_screen
+	   port map(
+			mclk        => clk_pin,
+            pixel_row   => pixel_y,
+            pixel_col   => pixel_x,
+            pixel_on    => pixel_on
+		);
+		
 	ctrl_rot: ctrl_rotation
 	   port map(
 	       -- inputs
@@ -181,7 +200,7 @@ begin
        );
 	
 	-- prendo toda la pantalla
-	rgb <= (others => '1');
+	rgb <= (others => '1') when pixel_on = '1' else (others => '0');
             
 	process(clk_pin)
 	begin
