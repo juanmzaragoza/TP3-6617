@@ -38,39 +38,40 @@ end cordic_tb;
 
 architecture Behavioral of cordic_tb is
 
-    component cordic_sequential is
-      generic (
-        SIZE       : positive;
-        ITERATIONS : positive;
-        RESET_ACTIVE_LEVEL : std_ulogic := '1'
-      );
-      port (
-        Clock : in std_ulogic;
-        Reset : in std_ulogic;
+    component cordic_pipelined is
+        generic (
+          SIZE               : positive; --# Width of operands
+          ITERATIONS         : positive; --# Number of iterations for CORDIC algorithm
+          RESET_ACTIVE_LEVEL : std_ulogic := '1' --# Asynch. reset control level
+        );
+        port (
+          --# {{clocks|}}
+          Clock : in std_ulogic; --# System clock
+          Reset : in std_ulogic; --# Asynchronous reset
     
-        Data_valid   : in std_ulogic;  --# Load new input data
-        Busy         : out std_ulogic; --# Generating new result
-        Result_valid : out std_ulogic; --# Flag when result is valid
-        Mode         : in cordic_mode; --# Rotation or vector mode selection
+          --# {{control|}}
+          Mode  : in cordic_mode; --# Rotation or vector mode selection
     
-        X : in signed(SIZE-1 downto 0);
-        Y : in signed(SIZE-1 downto 0);
-        Z : in signed(SIZE-1 downto 0);
+          --# {{data|}}
+          X : in signed(SIZE-1 downto 0); --# X coordinate
+          Y : in signed(SIZE-1 downto 0); --# Y coordinate
+          Z : in signed(SIZE-1 downto 0); --# Z coordinate (angle in brads)
     
-        X_result : out signed(SIZE-1 downto 0);
-        Y_result : out signed(SIZE-1 downto 0);
-        Z_result : out signed(SIZE-1 downto 0)
-      );
+          X_result : out signed(SIZE-1 downto 0); --# X result
+          Y_result : out signed(SIZE-1 downto 0); --# Y result
+          Z_result : out signed(SIZE-1 downto 0)  --# Z result
+        );
     end component;
     
     constant TCK: time:= 20 ns; 
     constant SIZE: positive := 20;
-    constant ITERATIONS: positive := 15;
+    constant ITERATIONS: positive := 20;
     
     signal clk, rot_ena, new_data: std_logic:= '0';
     signal X, Y, Z, Xa, Ya, Za,result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
     signal Zaux: signed(8 downto 0) := (others => '0');
     signal acc: integer := 0;
+    signal FRAC_BITS: positive := 2;
 
 begin
 
@@ -78,7 +79,8 @@ begin
     
     
     -- Vector unitario y conversion a brads
-    X <= to_signed(integer(1.0/cordic_gain(ITERATIONS) * 2.0 ** (SIZE-2)), result_y'length);
+    FRAC_BITS <= SIZE-11; --11-1 = bits parte entera
+    X <= to_signed(integer(200.0/cordic_gain(ITERATIONS) * 2.0 ** FRAC_BITS), result_y'length);
     Y <= (others => '0');
     
     Zaux <= to_signed(45 * 512 / 360, Zaux'length);
@@ -102,7 +104,7 @@ begin
         adjust_angle(X, Y, Z, Xa, Ya, Za); 
     end process;
     
-    DUT: cordic_sequential
+    DUT: cordic_pipelined
 	   generic map(
         SIZE                    => SIZE,
         ITERATIONS              => ITERATIONS,
@@ -112,7 +114,6 @@ begin
         Clock       => clk,
         Reset       => '0',
         
-        Data_valid  => new_data,
         Mode        => cordic_rotate,     
     
         X           => Xa,
