@@ -46,7 +46,7 @@ architecture Behavioral of crtl_screen is
 
     function draw_axis(pixel_row: std_logic_vector(9 downto 0); pixel_col: std_logic_vector(9 downto 0)) return boolean is
         begin
-            return ((to_integer(unsigned(pixel_row)) <= 241 and to_integer(unsigned(pixel_row)) >= 239) or (to_integer(unsigned(pixel_col)) <= 321 and to_integer(unsigned(pixel_col)) >= 319));
+            return ((to_integer(unsigned(pixel_row)) <= 241 and to_integer(unsigned(pixel_row)) >= 240) or (to_integer(unsigned(pixel_col)) <= 321 and to_integer(unsigned(pixel_col)) >= 320));
         end;
         
     component vector_calculator is
