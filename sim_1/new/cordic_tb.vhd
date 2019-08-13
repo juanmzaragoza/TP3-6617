@@ -65,19 +65,30 @@ architecture Behavioral of cordic_tb is
     
     constant TCK: time:= 20 ns; 
     constant SIZE: positive := 20;
-    constant ITERATIONS: positive := 20;
+    constant ITERATIONS: positive := 15;
     
     signal clk, rot_ena, new_data: std_logic:= '0';
-    signal X, Y, Z, Xa, Ya, Za, result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
+    signal X, Y, Z, Xa, Ya, Za,result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
+    signal Zaux: signed(8 downto 0) := (others => '0');
     signal acc: integer := 0;
 
 begin
 
     clk <= not(clk) after TCK/ 2; -- reloj
     
+    
+    -- Vector unitario y conversion a brads
     X <= to_signed(integer(1.0/cordic_gain(ITERATIONS) * 2.0 ** (SIZE-2)), result_y'length);
     Y <= (others => '0');
-    Z <= "00100000000000000000"; -- 2 PI RAD = 2 ^ SIZE => 00=0grados, 01=90grados, 10=180grados, 11=270grados
+    
+    Zaux <= to_signed(45 * 512 / 360, Zaux'length);
+    -- 2 PI RAD = 2 ^ SIZE => 00=0grados, 01=90grados, 10=180grados, 11=270grados
+    --Z <= "00100000000000000000";
+    
+    -- Paso angular 0.703125 grados = 0.5 brads
+    -- 360 grados = 512 0.5 brads
+    -- Entonces x_grados = x * 512 / 360 o bien y_brads = 45 grados * 512 / 360    
+    Z <= Zaux&Z(SIZE-10 downto 0);
     
     proc: process(clk) is
     begin
@@ -87,7 +98,8 @@ begin
         else
             new_data <= '0';
         end if;
-        adjust_angle(X, Y, Z, Xa, Ya, Za); -- ajusto el angulo dependiendo en que cuadrante este
+        -- ajusto el angulo dependiendo en que cuadrante este
+        adjust_angle(X, Y, Z, Xa, Ya, Za); 
     end process;
     
     DUT: cordic_sequential
