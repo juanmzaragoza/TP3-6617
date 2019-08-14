@@ -30,6 +30,7 @@ use IEEE.NUMERIC_STD.ALL;
 -- any Xilinx leaf cells in this code.
 --library UNISIM;
 --use UNISIM.VComponents.all;
+use work.cordic.all;
 
 entity crtl_screen is
     port(
@@ -37,6 +38,8 @@ entity crtl_screen is
 		mclk: in std_logic;
 		pixel_row: in std_logic_vector(9 downto 0); --devuelven en el sistema la posicion del barrido
 		pixel_col: in std_logic_vector(9 downto 0);
+		rotation_enable: in std_logic; -- habilita la rotacion...
+        degrees: in integer; -- esta cantidad de grados
 		-- outputs
 		pixel_on: out std_logic
 	);
@@ -49,37 +52,97 @@ architecture Behavioral of crtl_screen is
             return ((to_integer(unsigned(pixel_row)) <= 241 and to_integer(unsigned(pixel_row)) >= 240) or (to_integer(unsigned(pixel_col)) <= 321 and to_integer(unsigned(pixel_col)) >= 320));
         end;
         
-    component vector_calculator is
-        generic(
-            AW: integer := 100 -- para un vector de norma 100
+    component cordic_pipelined_in_degress is
+        generic (
+            INTEGER_BITS       : positive := 11; --# INTEGER_BITS - 1 number integer part
+            SIZE               : positive; --# Width of operands (Always greather than 9)
+            ITERATIONS         : positive; --# Number of iterations for CORDIC algorithm
+            RESET_ACTIVE_LEVEL : std_ulogic := '1' --# Asynch. reset control level
         );
-        port ( clk : in std_logic;
-        
-               pixel_x: in std_logic_vector(9 downto 0);  --contador de pixeles de la VGA
-               pixel_y : in std_logic_vector(9 downto 0); --contador de pixeles de la VGA
-               
-               --cordic_pixel_x: in signed := (others => '0');   --salida del cordic
-               --cordic_pixel_y : in signed := (others => '0');  --salida del cordic
-               
-               pixel_on: out std_logic := '0'
-               
+        port (
+            --# {{clocks|}}
+            clk   : in std_ulogic; --# System clock
+            Reset : in std_ulogic; --# Asynchronous reset
+            Mode  : in cordic_mode := cordic_rotate; --# Rotation or vector mode selection
+    
+            --# {{data|}}
+            degrees : in integer; --# degress from 0 to 360
+            
+            MAGNITUDE  : in real := 200.0; --# Scale factor for vector length
+    
+            X_result : out signed(SIZE-1 downto 0); --# X result
+            Y_result : out signed(SIZE-1 downto 0); --# Y result
+            Z_result : out signed(SIZE-1 downto 0)  --# Z result
         );
     end component;
     
-    signal vector_on: std_logic := '0';
-begin
+    -- screen
+    constant WIDTH_SCREEN: integer := 640;
+    constant HEIGHT_SCREEN: integer := 480;
+    -- cordic
+    constant INTEGER_BITS: positive := 11;
+    constant SIZE: positive := 20;
+    constant ITERATIONS: positive := 20;
     
-    vectorCalculator: vector_calculator
-        port map(
-            clk             => mclk,
-            pixel_x         => pixel_col,
-            pixel_y         => pixel_row,
-            --cordic_pixel_x  => 10,
-            --cordic_pixel_y  => 10,
-            pixel_on        => vector_on
-        );
+    signal busy: std_logic := '0';
+    --ram
+    type ram_type is array (0 to HEIGHT_SCREEN-1) of std_logic_vector(WIDTH_SCREEN-1 downto 0);
+    signal RAM: ram_type := (others=>(others=>'0'));
+    --cordic
+    signal result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
+    signal mag: real := 1.0;
+    --auxiliares
+    signal x_integer, y_integer: integer := 0;
+    
+begin
+
+    process(mclk)
+    begin
+        if rising_edge(mclk) then
+            
+            -- Calculo de cada punto del vector (200,0)
+            if busy = '1' and mag < 200.0 then -- 2) cada vez que esta busy, aumento la maginutd para obtener un nuevo result
+                mag <= mag + 1.0;
+            elsif rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
+                busy <= '1';
+                mag <= 1.0;
+                RAM <= (others=>(others=>'0')); --limpio la RAM
+            else -- si la magnitud es mayor a 200, dejo de estar busy porque termine de calcular la nueva posicion del vector
+                busy <= '0';
+            end if;
+            
+            -- por cada result, tengo que ver si su parte entera es un numero entre 0 y 200
+            -- porque el resultado no puede exceder ese valor
+            --#1 valido que no sea 'X' ni 'U'
+            --#2 convierto la parte entera
+            x_integer <= to_integer(unsigned(result_x(SIZE-2 downto SIZE-INTEGER_BITS)))+480; --col
+            y_integer <= to_integer(unsigned(result_y(SIZE-2 downto SIZE-INTEGER_BITS)))+240; --row
+            RAM(y_integer)(x_integer) <= '1';
+            
+        end if;
+    end process;
+    
+    cordic: cordic_pipelined_in_degress
+	   generic map(
+        SIZE                    => SIZE,
+        ITERATIONS              => ITERATIONS,
+        RESET_ACTIVE_LEVEL      => '1'
+	   )
+	   port map (
+        clk       => mclk,
+        Reset       => '0',
         
-    pixel_on <= '1' when draw_axis(pixel_row, pixel_col) or vector_on = '1'
+        Mode        => cordic_rotate,     
+        MAGNITUDE   => mag,
+        
+        degrees     => degrees, 
+    
+        X_result    => result_x,
+        Y_result    => result_y,
+        Z_result    => open
+      );
+        
+    pixel_on <= '1' when draw_axis(pixel_row, pixel_col) or RAM(to_integer(unsigned(pixel_row)))(to_integer(unsigned((pixel_col)))) = '1'
                     else '0';
 
 end Behavioral;

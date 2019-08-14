@@ -51,7 +51,7 @@ architecture Behavioral of cordic_pipelined_in_degress_tb is
             Mode  : in cordic_mode := cordic_rotate; --# Rotation or vector mode selection
     
             --# {{data|}}
-            degress : in integer; --# degress from 0 to 360
+            degrees : in integer; --# degress from 0 to 360
             
             MAGNITUDE  : in real := 200.0; --# Scale factor for vector length
     
@@ -97,7 +97,7 @@ begin
         Mode        => cordic_rotate,     
         MAGNITUDE   => mag,
         
-        degress     => 45, 
+        degrees     => 45, 
     
         X_result    => result_x,
         Y_result    => result_y,

@@ -122,6 +122,8 @@ architecture Behavioral of ctrl_top is
             mclk: in std_logic;
             pixel_row: in std_logic_vector(9 downto 0); --devuelven en el sistema la posicion del barrido
             pixel_col: in std_logic_vector(9 downto 0);
+            rotation_enable: in std_logic; -- habilita la rotacion...
+            degrees: in integer; -- esta cantidad de grados
             -- outputs
             pixel_on: out std_logic
         );
@@ -181,10 +183,12 @@ begin
 		
 	screen: crtl_screen
 	   port map(
-			mclk        => clk_pin,
-            pixel_row   => pixel_y,
-            pixel_col   => pixel_x,
-            pixel_on    => pixel_on
+			mclk             => clk_pin,
+            pixel_row       => pixel_y,
+            pixel_col       => pixel_x,
+            rotation_enable => enable_rot,
+            degrees         => rotation_degress,
+            pixel_on        => pixel_on
 		);
 		
 	ctrl_rot: ctrl_rotation

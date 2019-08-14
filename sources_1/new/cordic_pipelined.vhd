@@ -46,7 +46,7 @@ entity cordic_pipelined_in_degress is
         Mode  : in cordic_mode := cordic_rotate; --# Rotation or vector mode selection
 
         --# {{data|}}
-        degress : in integer; --# degress from 0 to 360
+        degrees : in integer; --# degress from 0 to 360
         
         MAGNITUDE  : in real := 200.0; --# Scale factor for vector length
 
@@ -80,7 +80,7 @@ begin
     -- Paso angular 0.703125 grados = 0.5 brads
     -- 360 grados = 512 0.5 brads
     -- Entonces x_grados = x * 512 / 360 o bien y_brads = 45 grados * 512 / 360
-    Zaux <= to_signed(degress * 512 / 360, Zaux'length); 
+    Zaux <= to_signed(degrees * 512 / 360, Zaux'length); 
     Zin <= Zaux&complete_vector(SIZE-Zaux'length-1 downto 0);
     
     DUT: cordic_pipelined
