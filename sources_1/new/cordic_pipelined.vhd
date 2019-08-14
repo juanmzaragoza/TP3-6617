@@ -91,7 +91,7 @@ begin
 	   )
 	   port map (
         Clock       => clk,
-        Reset       => '0',
+        Reset       => Reset,
         
         Mode        => cordic_rotate,     
     

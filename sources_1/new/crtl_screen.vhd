@@ -84,15 +84,16 @@ architecture Behavioral of crtl_screen is
     constant SIZE: positive := 20;
     constant ITERATIONS: positive := 20;
     
-    signal busy: std_logic := '0';
     --ram
     type ram_type is array (0 to HEIGHT_SCREEN-1) of std_logic_vector(WIDTH_SCREEN-1 downto 0);
     signal RAM: ram_type := (others=>(others=>'0'));
     --cordic
     signal result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
     signal mag: real := 1.0;
+    signal cordic_reset: std_logic := '0';
     --auxiliares
-    signal x_integer, y_integer: integer := 0;
+    signal busy: std_logic := '0';
+    signal x_integer, y_integer, acc: integer := 0;
     
 begin
 
@@ -102,22 +103,35 @@ begin
             
             -- Calculo de cada punto del vector (200,0)
             if busy = '1' and mag < 200.0 then -- 2) cada vez que esta busy, aumento la maginutd para obtener un nuevo result
+            
                 mag <= mag + 1.0;
+                cordic_reset <= '0';
+                acc <= acc + 1; -- aumento el acumulador para saber a partir de que momento tengo que empezar a leer el dato
+                
             elsif rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
+            
                 busy <= '1';
                 mag <= 1.0;
                 RAM <= (others=>(others=>'0')); --limpio la RAM
-            else -- si la magnitud es mayor a 200, dejo de estar busy porque termine de calcular la nueva posicion del vector
+                cordic_reset <= '1'; -- arranco los calculos del cordic nuevamente
+                acc <= 0;
+                
+            else -- 3) si la magnitud es mayor a 200, dejo de estar busy porque termine de calcular la nueva posicion del vector
+            
                 busy <= '0';
+                cordic_reset <= '0';
+                
             end if;
             
             -- por cada result, tengo que ver si su parte entera es un numero entre 0 y 200
             -- porque el resultado no puede exceder ese valor
             --#1 valido que no sea 'X' ni 'U'
             --#2 convierto la parte entera
-            x_integer <= to_integer(unsigned(result_x(SIZE-2 downto SIZE-INTEGER_BITS)))+480; --col
-            y_integer <= to_integer(unsigned(result_y(SIZE-2 downto SIZE-INTEGER_BITS)))+240; --row
-            RAM(y_integer)(x_integer) <= '1';
+            if acc >= ITERATIONS then -- podriamos validar tambien que acc <= 200 + ITERATIONS
+                x_integer <= to_integer(unsigned(result_x(SIZE-2 downto SIZE-INTEGER_BITS)))+480; --col
+                y_integer <= to_integer(unsigned(result_y(SIZE-2 downto SIZE-INTEGER_BITS)))+240; --row
+                RAM(y_integer)(x_integer) <= '1';
+            end if;
             
         end if;
     end process;
@@ -129,8 +143,8 @@ begin
         RESET_ACTIVE_LEVEL      => '1'
 	   )
 	   port map (
-        clk       => mclk,
-        Reset       => '0',
+        clk         => mclk,
+        Reset       => cordic_reset,
         
         Mode        => cordic_rotate,     
         MAGNITUDE   => mag,
