@@ -90,7 +90,7 @@ begin
     -- Paso angular 0.703125 grados = 0.5 brads
     -- 360 grados = 512 0.5 brads
     -- Entonces x_grados = x * 512 / 360 o bien y_brads = 45 grados * 512 / 360    
-    Z <= Zaux&Z(SIZE-10 downto 0);
+    Z <= Zaux&Z(SIZE-Zaux'length-1 downto 0);
     
     proc: process(clk) is
     begin
