@@ -48,7 +48,7 @@ entity cordic_pipelined_in_degress is
         --# {{data|}}
         degrees : in integer; --# degress from 0 to 360
         
-        MAGNITUDE  : in real := 200.0; --# Scale factor for vector length
+        MAGNITUDE  : in integer := 200; --# Scale factor for vector length
 
         X_result : out signed(SIZE-1 downto 0); --# X result
         Y_result : out signed(SIZE-1 downto 0); --# Y result
@@ -64,7 +64,7 @@ architecture Behavioral of cordic_pipelined_in_degress is
     
 begin
 
-    proc: process(clk) is
+    proc: process(clk, Xin, Yin, Zin) is
         begin
             -- ajusto el angulo dependiendo en que cuadrante este
             adjust_angle(Xin, Yin, Zin, Xa, Ya, Za); 
@@ -72,7 +72,9 @@ begin
         
     FRAC_BITS <= SIZE - INTEGER_BITS;
     
-    Xin <= to_signed(integer(MAGNITUDE/cordic_gain(ITERATIONS) * 2.0 ** FRAC_BITS), X_result'length);
+    --Xin <= to_signed(integer(real(MAGNITUDE)/real(cordic_gain(ITERATIONS)) * real(2) ** FRAC_BITS), X_result'length);
+    --Xin <= to_signed(200, X_result'length);
+    Xin <= to_signed(MAGNITUDE * (6098/10000) * 2 ** FRAC_BITS, X_result'length);
     Yin <= (others => '0');
     -- 2 PI RAD = 2 ^ SIZE => 00=0grados, 01=90grados, 10=180grados, 11=270grados
     --Z <= "00100000000000000000";

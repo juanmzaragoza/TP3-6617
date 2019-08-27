@@ -68,7 +68,7 @@ architecture Behavioral of crtl_screen is
             --# {{data|}}
             degrees : in integer; --# degress from 0 to 360
             
-            MAGNITUDE  : in real := 200.0; --# Scale factor for vector length
+            MAGNITUDE  : in integer := 200; --# Scale factor for vector length
     
             X_result : out signed(SIZE-1 downto 0); --# X result
             Y_result : out signed(SIZE-1 downto 0); --# Y result
@@ -89,11 +89,12 @@ architecture Behavioral of crtl_screen is
     signal RAM: ram_type := (others=>(others=>'0'));
     --cordic
     signal result_x, result_y: signed(SIZE-1 downto 0) := (others => '0');
-    signal mag: real := 1.0;
+    signal mag: integer := 1;
     signal cordic_reset: std_logic := '0';
     --auxiliares
     signal busy: std_logic := '0';
     signal x_integer, y_integer, acc: integer := 0;
+    signal aux1, aux2: boolean := false;
     
 begin
 
@@ -102,16 +103,18 @@ begin
         if rising_edge(mclk) then
             
             -- Calculo de cada punto del vector (200,0)
-            if busy = '1' and mag < 200.0 then -- 2) cada vez que esta busy, aumento la maginutd para obtener un nuevo result
+            aux1 <= busy = '1';
+            aux2 <= mag < 200;
+            if aux1 and aux2 then -- 2) cada vez que esta busy, aumento la maginutd para obtener un nuevo result
             
-                mag <= mag + 1.0;
+                mag <= mag + 1;
                 cordic_reset <= '0';
                 acc <= acc + 1; -- aumento el acumulador para saber a partir de que momento tengo que empezar a leer el dato
                 
             elsif rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
             
                 busy <= '1';
-                mag <= 1.0;
+                mag <= 1;
                 RAM <= (others=>(others=>'0')); --limpio la RAM
                 cordic_reset <= '1'; -- arranco los calculos del cordic nuevamente
                 acc <= 0;
