@@ -58,6 +58,28 @@ end cordic_pipelined_in_degress;
 
 architecture Behavioral of cordic_pipelined_in_degress is
     
+    component cordic_sequential is
+      generic (
+        SIZE       : positive;
+        ITERATIONS : positive;
+        RESET_ACTIVE_LEVEL : std_ulogic := '1'
+      );
+      port (
+        Clock : in std_ulogic;
+        Reset : in std_ulogic;
+    
+        Mode         : in cordic_mode; --# Rotation or vector mode selection
+    
+        X : in signed(SIZE-1 downto 0);
+        Y : in signed(SIZE-1 downto 0);
+        Z : in signed(SIZE-1 downto 0);
+    
+        X_result : out signed(SIZE-1 downto 0);
+        Y_result : out signed(SIZE-1 downto 0);
+        Z_result : out signed(SIZE-1 downto 0)
+      );
+    end component;
+
     signal Xin, Yin, Zin, Xa, Ya, Za, complete_vector: signed(SIZE-1 downto 0) := (others => '0');
     signal Zaux: signed(8 downto 0) := (others => '0');
     signal FRAC_BITS: positive := INTEGER_BITS;
@@ -85,7 +107,7 @@ begin
     Zaux <= to_signed(degrees * 512 / 360, Zaux'length); 
     Zin <= Zaux&complete_vector(SIZE-Zaux'length-1 downto 0);
     
-    DUT: cordic_pipelined
+    DUT: cordic_sequential
 	   generic map(
         SIZE                    => SIZE,
         ITERATIONS              => ITERATIONS,
