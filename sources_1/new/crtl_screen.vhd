@@ -95,6 +95,7 @@ architecture Behavioral of crtl_screen is
     signal busy: std_logic := '0';
     signal x_integer, y_integer, acc: integer := 0;
     signal aux1, aux2: boolean := false;
+    signal rotation_enable_old: std_logic := '0';
     
 begin
 
@@ -111,7 +112,7 @@ begin
                 cordic_reset <= '0';
                 acc <= acc + 1; -- aumento el acumulador para saber a partir de que momento tengo que empezar a leer el dato
                 
-            elsif rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
+            elsif rotation_enable_old = '0' and rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
             
                 busy <= '1';
                 mag <= 1;
@@ -135,6 +136,8 @@ begin
                 y_integer <= to_integer(unsigned(result_y(SIZE-2 downto SIZE-INTEGER_BITS)))+240; --row
                 RAM(y_integer)(x_integer) <= '1';
             end if;
+            
+            rotation_enable_old <= rotation_enable;
             
         end if;
     end process;
