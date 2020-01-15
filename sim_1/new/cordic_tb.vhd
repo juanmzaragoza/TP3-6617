@@ -38,7 +38,7 @@ end cordic_tb;
 
 architecture Behavioral of cordic_tb is
 
-    component cordic_pipelined is
+    component cordic_sequential is
         generic (
           SIZE               : positive; --# Width of operands
           ITERATIONS         : positive; --# Number of iterations for CORDIC algorithm
@@ -104,7 +104,7 @@ begin
         adjust_angle(X, Y, Z, Xa, Ya, Za); 
     end process;
     
-    DUT: cordic_pipelined
+    DUT: cordic_sequential
 	   generic map(
         SIZE                    => SIZE,
         ITERATIONS              => ITERATIONS,

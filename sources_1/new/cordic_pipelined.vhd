@@ -43,6 +43,10 @@ entity cordic_pipelined_in_degress is
         --# {{clocks|}}
         clk   : in std_ulogic; --# System clock
         Reset : in std_ulogic; --# Asynchronous reset
+        
+        Data_valid   : in std_ulogic;  --# Load new input data
+        Busy         : out std_ulogic; --# Generating new result
+        Result_valid : out std_ulogic; --# Flag when result is valid
         Mode  : in cordic_mode := cordic_rotate; --# Rotation or vector mode selection
 
         --# {{data|}}
@@ -67,7 +71,10 @@ architecture Behavioral of cordic_pipelined_in_degress is
       port (
         Clock : in std_ulogic;
         Reset : in std_ulogic;
-    
+        
+        Data_valid   : in std_ulogic;  --# Load new input data
+        Busy         : out std_ulogic; --# Generating new result
+        Result_valid : out std_ulogic; --# Flag when result is valid
         Mode         : in cordic_mode; --# Rotation or vector mode selection
     
         X : in signed(SIZE-1 downto 0);
@@ -114,18 +121,21 @@ begin
         RESET_ACTIVE_LEVEL      => '1'
 	   )
 	   port map (
-        Clock       => clk,
-        Reset       => Reset,
+        Clock           => clk,
+        Reset           => Reset,
         
-        Mode        => cordic_rotate,     
+        Data_valid      => Data_valid,  --# Load new input data
+        Busy            => Busy, --# Generating new result
+        Result_valid    => Result_valid, --# Flag when result is valid
+        Mode            => cordic_rotate,     
     
-        X           => Xa,
-        Y           => Ya,
-        Z           => Za, 
+        X               => Xa,
+        Y               => Ya,
+        Z               => Za, 
     
-        X_result    => X_result,
-        Y_result    => Y_result,
-        Z_result    => Z_result
+        X_result        => X_result,
+        Y_result        => Y_result,
+        Z_result        => Z_result
       );
     
 end Behavioral;

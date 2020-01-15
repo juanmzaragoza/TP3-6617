@@ -63,6 +63,10 @@ architecture Behavioral of crtl_screen is
             --# {{clocks|}}
             clk   : in std_ulogic; --# System clock
             Reset : in std_ulogic; --# Asynchronous reset
+            
+            Data_valid   : in std_ulogic;  --# Load new input data
+            Busy         : out std_ulogic; --# Generating new result
+            Result_valid : out std_ulogic; --# Flag when result is valid
             Mode  : in cordic_mode := cordic_rotate; --# Rotation or vector mode selection
     
             --# {{data|}}
@@ -92,9 +96,8 @@ architecture Behavioral of crtl_screen is
     signal mag: integer := 1;
     signal cordic_reset: std_logic := '0';
     --auxiliares
-    signal busy: std_logic := '0';
-    signal x_integer, y_integer, acc: integer := 0;
-    signal aux1, aux2: boolean := false;
+    signal Busy, Data_valid, Result_valid: std_logic := '0';
+    signal x_integer, y_integer: integer := 0;
     signal rotation_enable_old: std_logic := '0';
     
 begin
@@ -102,41 +105,42 @@ begin
     process(mclk)
     begin
         if rising_edge(mclk) then
+        
             
-            -- Calculo de cada punto del vector (200,0)
-            aux1 <= busy = '1';
-            aux2 <= mag < 200;
-            if aux1 and aux2 then -- 2) cada vez que esta busy, aumento la maginutd para obtener un nuevo result
+            if cordic_reset = '1' and Data_valid = '1' then
             
-                mag <= mag + 1;
                 cordic_reset <= '0';
-                acc <= acc + 1; -- aumento el acumulador para saber a partir de que momento tengo que empezar a leer el dato
                 
+            -- Calculo de cada punto del vector (200,0)
             elsif rotation_enable_old = '0' and rotation_enable = '1' then -- 1) cuando se habilita la rotacion, arranco a calculalar desde 1
             
-                busy <= '1';
-                mag <= 1;
+                mag <= 1; -- habilito a contar las magnitudes
                 RAM <= (others=>(others=>'0')); --limpio la RAM
-                cordic_reset <= '1'; -- arranco los calculos del cordic nuevamente
-                acc <= 0;
-                
-            else -- 3) si la magnitud es mayor a 200, dejo de estar busy porque termine de calcular la nueva posicion del vector
+                cordic_reset <= '0'; -- me aseguro que no se encuentre reseteado
+                Data_valid <= '1'; -- habilito la nueva entrada para que comience el calculo
             
-                busy <= '0';
-                cordic_reset <= '0';
-                
-            end if;
+            elsif Result_valid = '1' and Busy = '0' then -- si termino de calcular
             
-            -- por cada result, tengo que ver si su parte entera es un numero entre 0 y 200
-            -- porque el resultado no puede exceder ese valor
-            --#1 valido que no sea 'X' ni 'U'
-            --#2 convierto la parte entera
-            if acc >= ITERATIONS then -- podriamos validar tambien que acc <= 200 + ITERATIONS
                 x_integer <= to_integer(unsigned(result_x(SIZE-2 downto SIZE-INTEGER_BITS)))+480; --col
                 y_integer <= to_integer(unsigned(result_y(SIZE-2 downto SIZE-INTEGER_BITS)))+240; --row
-                RAM(y_integer)(x_integer) <= '1';
+                RAM(y_integer)(x_integer) <= '1'; -- prendo el bit en la RAM
+                
+                mag <= mag + 1; -- aumento en 1 la magintud
+                Data_valid <= '1'; -- lo pongo en 1 para indicar nuevo dato
+                cordic_reset <= '1'; -- reseteo el cordic porque termine
+                
+            elsif mag >= 200 then -- si termino de calcular todas las magnitudes
+            
+                cordic_reset <= '1'; -- reseteo el cordic porque termine
+                Data_valid <= '0'; -- lo pongo en cero para que cuenta las ITERATIONS del cordic
+                
+            else -- en cualquier otro caso
+            
+                Data_valid <= '0'; -- lo pongo en cero para que cuenta las ITERATIONS del cordic
+                
             end if;
             
+            -- me guardo el anterior para ver flanco ASC
             rotation_enable_old <= rotation_enable;
             
         end if;
@@ -152,6 +156,9 @@ begin
         clk         => mclk,
         Reset       => cordic_reset,
         
+        Data_valid      => Data_valid,  --# Load new input data
+        Busy            => Busy, --# Generating new result
+        Result_valid    => Result_valid, --# Flag when result is valid
         Mode        => cordic_rotate,     
         MAGNITUDE   => mag,
         
